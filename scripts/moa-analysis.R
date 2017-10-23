@@ -41,8 +41,6 @@ moa.sticklestudy <- moa.data %>%
   mutate(ci = if_else(Trait_var_Cat == "SD", 1.96 * (Trait_var/sqrt(Trait_n)), false = 0)) # calculate CIs
 
 
-
-
 # are traits different, if so, are hybrids in the middle?
 
 # # start by spreading 
@@ -59,7 +57,20 @@ moa.sticklestudy.a <- moa.sticklestudy %>%
   group_by(study.id, TraitNo) %>% # group by study and trait
   mutate(Trait.mean.subbed = Trait_mean - min(Trait_mean[Parent_Hybrid == "Parent"])) %>% # subtract minimum parent value from all, rendering one parent = 0
   mutate(Trait.mean.scaled = Trait.mean.subbed  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1)  # now divide all values by 2/max - 1 to set parent 1 =-1, parent 2 = 1; note: this doesn't appropriately scale SD
+  # mutate(ci.scaled = ci  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1) 
   # re-orient all variables so the same parent is -1 for all traits
+
+# calculate parental mid-pt
+moa.sticklestudy.b <- moa.sticklestudy.a %>% 
+  select(Parent_Hybrid, TraitNo ,Trait_mean) %>% 
+  filter(Parent_Hybrid == "Parent") %>% 
+  group_by(TraitNo) %>% 
+  summarize(mean(Trait_mean))
+
+#list of parental midpoints
+moa.sticklestudy.b$`mean(Trait_mean)`
+
+# are parental midpoints
 
 # left here 2017-10-23
 # need to figure out how to muliply a 'trait' by -1 if the specified parent does not equal -1 or 1.
@@ -83,29 +94,13 @@ moa.sticklestudy.a <- moa.sticklestudy %>%
 # 
 #
 
-
-
-
-
-
-
-
-
-
-if(moa.sticklestudy$Species_or_CrossType[1] > moa.sticklestudy$Species_or_CrossType[2])
-
-
-
-
-
-
 # plot each trait
 trait.mean.plot <- 
   ggplot(moa.sticklestudy.a,
          aes(x = Trait.mean.scaled, y = TraitDesc, fill = Species_or_CrossType)) + 
   geom_point(aes(shape = factor(Species_or_CrossType), fill = factor(Species_or_CrossType)), size = 3) +
   geom_vline(xintercept = 0, col = "red") +
-  # geom_errorbarh(aes(xmax = scale.trait.mean + scale.trait.var, xmin = scale.trait.mean - scale.trait.var)) + # plots horizontal error bars
+  # geom_errorbarh(aes(xmax = Trait.mean.scaled + ci, xmin = Trait.mean.scaled - ci)) + # plots horizontal error bars; not sure show to do this.
   theme_meta
 trait.mean.plot
 
