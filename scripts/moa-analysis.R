@@ -4,7 +4,7 @@
 
 # pacakges
 
-library(modEvA)
+# library(modEvA)
 # library(scales)
 library(tidyverse)
 
@@ -26,7 +26,7 @@ theme_meta <- theme(aspect.ratio=1.0,panel.background = element_blank(),
                         axis.text.y=element_text(size=10))
 
 # read data
-moa.data <- read.csv('/Users/ken.thompson/Dropbox/!Ph.D./!MoA_Meta-analysis_of_Inheritance/EDD_Database/2017-10-23-EDD_Database.csv')
+moa.data <- read.csv('/Users/Ken/Dropbox/!Ph.D./!MoA_Meta-analysis_of_Inheritance/EDD_Database/2017-10-23-EDD_Database.csv')
 
 #create unique study variable
 
@@ -60,6 +60,13 @@ moa.sticklestudy.a <- moa.sticklestudy %>%
   # mutate(ci.scaled = ci  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1) 
   # re-orient all variables so the same parent is -1 for all traits
 
+
+
+# calculate opposing dominance
+# variance works well for this
+
+
+
 # calculate parental mid-pt
 moa.sticklestudy.b <- moa.sticklestudy.a %>% 
   select(Parent_Hybrid, TraitNo ,Trait_mean) %>% 
@@ -74,33 +81,59 @@ moa.sticklestudy.b$`mean(Trait_mean)`
 
 # left here 2017-10-23
 # need to figure out how to muliply a 'trait' by -1 if the specified parent does not equal -1 or 1.
-# trying some solutions below but it's proving difficult
 
 # # NEED to create a logical function that, if specified parent is equal to 1, returns TRUE or False
 # 
-# test.data <- moa.sticklestudy.a %>% 
-#   select(Parent_Hybrid, Species_or_CrossType, Trait.mean.scaled) %>% 
-#   mutate(SpeciesNo = match(Species_or_CrossType, unique(Species_or_CrossType))) %>% 
-#   filter(SpeciesNo == 1)
-# ifelse(test.data$Trait.mean.scaled == 1, T, F)
-# 
-# reorient.y.n <- function(x){
-# x <- x %>%
-#     select(Parent_Hybrid, Species_or_CrossType, Trait.mean.scaled) %>% 
-#     mutate(SpeciesNo = match(Species_or_CrossType, unique(Species_or_CrossType))) %>% 
-#     filter(SpeciesNo == 1)
-# return(ifelse(x$Trait.mean.scaled == 1, T, F))
-# }
-# 
-#
+moa.sticklestudy.b <- moa.sticklestudy.a %>%
+  group_by(TraitNo) %>% 
+  mutate(inverse.need = if_else(Trait.mean.scaled[Species_or_CrossType == "Paxton_Benthic"] == 1, T, F)) %>%  # true if all is good, false if need to invert 
+  mutate(final.trait = ifelse(inverse.need == T, -1 * Trait.mean.scaled, 1 * Trait.mean.scaled))
+View(test.data)
+
+         
+# net/opposing dominance
+nd.data <- moa.sticklestudy.b %>% 
+  ungroup() %>% 
+  filter(Parent_Hybrid == "Hybrid") %>% 
+  summarize(net = mean(final.trait), opp = sd(final.trait))
+nd <- nd.data$net
+opp <- nd.data$opp # this is the 'opposing dominance' quantification (for now) unfortunate thing is it's not in the same 'units' as the parents...
+
+A = as.vector(c(1,1))
+B = as.vector(c(-1,-1))
+
+P = as.vector(c(-1,1))
+
+#bring to the origin
+pa = P - A
+ba = B - A
+
+#length
+# this does it correctly, dolph verified
+t = (pa %*% ba) / (ba %*% ba)
+d = (pa - t * ba)
+dist = sqrt(sum(d^2))
+dist
+
+
 
 # plot each trait
 trait.mean.plot <- 
-  ggplot(moa.sticklestudy.a,
-         aes(x = Trait.mean.scaled, y = TraitDesc, fill = Species_or_CrossType)) + 
+  ggplot(moa.sticklestudy.b,
+         aes(x = final.trait, y = TraitDesc, fill = Species_or_CrossType)) + 
   geom_point(aes(shape = factor(Species_or_CrossType), fill = factor(Species_or_CrossType)), size = 3) +
   geom_vline(xintercept = 0, col = "red") +
   # geom_errorbarh(aes(xmax = Trait.mean.scaled + ci, xmin = Trait.mean.scaled - ci)) + # plots horizontal error bars; not sure show to do this.
   theme_meta
 trait.mean.plot
+
+
+## Stack overflow question 
+Hello
+
+Id like to calculate the distance between a point and a line in any number of dimensions. For example
+
+# 2 dimensions
+v1 <- as.vector(c(1, 2))
+
 
