@@ -43,14 +43,6 @@ moa.sticklestudy <- moa.data %>%
 
 # are traits different, if so, are hybrids in the middle?
 
-# # start by spreading 
-# moa.sticklestudy.wide <- moa.sticklestudy %>% 
-#   group_by(study.id) %>% 
-#   spread(key = Parent_Hybrid, value = c(Trait_mean, Trait_var))
-
-
-
-
 
 # set one parent to -1 other to +1
 moa.sticklestudy.a <- moa.sticklestudy %>%
@@ -68,22 +60,29 @@ moa.sticklestudy.a <- moa.sticklestudy %>%
 
 
 # calculate parental mid-pt
-moa.sticklestudy.b <- moa.sticklestudy.a %>% 
+moa.parentmid <- moa.sticklestudy.a %>% 
   select(Parent_Hybrid, TraitNo ,Trait_mean) %>% 
   filter(Parent_Hybrid == "Parent") %>% 
   group_by(TraitNo) %>% 
   summarize(mean(Trait_mean))
 
 #list of parental midpoints
-moa.sticklestudy.b$`mean(Trait_mean)`
+parent.mids <- moa.parentmid$`mean(Trait_mean)`
 
-# are parental midpoints
+# do CIs from hybrid contain midpoint?
+moa.trait.ci <- moa.sticklestudy %>% 
+  filter(Parent_Hybrid == "Hybrid") %>% 
+  mutate(Low.Bound = Trait_mean - ci, High.Bound = Trait_mean + ci) %>% 
+  mutate(parent.mid = parent.mids)
 
-# left here 2017-10-23
-# need to figure out how to muliply a 'trait' by -1 if the specified parent does not equal -1 or 1.
+# proportion of dominant traits (later: among traits that differ between parents)
+View(moa.trait.ci)
+as.vector(moa.trait.ci$TraitDesc)
+with(moa.trait.ci, Low.Bound <= parent.mid & High.Bound >= parent.mids)
+# nice, works
 
-# # NEED to create a logical function that, if specified parent is equal to 1, returns TRUE or False
-# 
+
+# scale trait so that all one parent = -1, all other = 1 
 moa.sticklestudy.b <- moa.sticklestudy.a %>%
   group_by(TraitNo) %>% 
   mutate(inverse.need = if_else(Trait.mean.scaled[Species_or_CrossType == "Paxton_Benthic"] == 1, T, F)) %>%  # true if all is good, false if need to invert 
@@ -91,26 +90,30 @@ moa.sticklestudy.b <- moa.sticklestudy.a %>%
 View(test.data)
 
          
-# net/opposing dominance
+# net dominance
 nd.data <- moa.sticklestudy.b %>% 
   ungroup() %>% 
   filter(Parent_Hybrid == "Hybrid") %>% 
-  summarize(net = mean(final.trait), opp = sd(final.trait))
+  summarize(net = mean(final.trait))
 nd <- nd.data$net
 opp <- nd.data$opp # this is the 'opposing dominance' quantification (for now) unfortunate thing is it's not in the same 'units' as the parents...
 
-A = as.vector(c(1,1))
-B = as.vector(c(-1,-1))
+# opposing dominance
+# brute forece test
+A <- moa.sticklestudy.b %>% filter(Species_or_CrossType == "Paxton_Benthic")
+A <- as.vector(A$final.trait)
 
-P = as.vector(c(-1,1))
+B <- moa.sticklestudy.b %>% filter(Species_or_CrossType == "Paxton_Limnetic")
+B <- as.vector(B$final.trait)
+
+P <- moa.sticklestudy.b %>% filter(Species_or_CrossType == "F1")
+P <- as.vector(P$final.trait)
 
 #bring to the origin
 pa = P - A
 ba = B - A
 
-#length
-# this does it correctly, dolph verified
-t = (pa %*% ba) / (ba %*% ba)
+t = as.vector((pa %*% ba) / (ba %*% ba))
 d = (pa - t * ba)
 dist = sqrt(sum(d^2))
 dist
@@ -126,14 +129,3 @@ trait.mean.plot <-
   # geom_errorbarh(aes(xmax = Trait.mean.scaled + ci, xmin = Trait.mean.scaled - ci)) + # plots horizontal error bars; not sure show to do this.
   theme_meta
 trait.mean.plot
-
-
-## Stack overflow question 
-Hello
-
-Id like to calculate the distance between a point and a line in any number of dimensions. For example
-
-# 2 dimensions
-v1 <- as.vector(c(1, 2))
-
-
