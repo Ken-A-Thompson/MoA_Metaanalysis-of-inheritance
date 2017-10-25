@@ -41,21 +41,23 @@ moa.sticklestudy <- moa.data %>%
   mutate(ci = if_else(Trait_var_Cat == "SD", 1.96 * (Trait_var/sqrt(Trait_n)), false = 0)) %>% # calculate CIs
   mutate(Low.Bound = Trait_mean - ci, High.Bound = Trait_mean + ci) # lower and upper bound of 95% CI
 
-# are parental traits different, if so, are hybrids in the middle?
+# are parental traits different
 test.data <- moa.sticklestudy %>% 
   filter(Parent_Hybrid == "Parent") %>% 
   select(Low.Bound, High.Bound, Species_or_CrossType, TraitNo) %>% 
-  gather(key = )
-  unite(TraitNo, High.Bound, Low.Bound) %>% 
-  spread(var, value)
-  
-# now want dataframe with trait startSp1, stopsp1,  
+  gather(key = bound, value = value, Low.Bound, High.Bound) %>% # make a single variable for 'bound'
+  unite(col = "Species_Bound", Species_or_CrossType, bound) %>%  # Bring species together with appropriate 'bound'
+  spread(Species_Bound, value) %>%  # spread the data to wide from long
+  mutate(greater.than = ifelse(.[[2]] >= .[[4]] & .[[3]] >= .[[4]], T, F)) %>% # is parent 1 trait greater than parent 2
+  mutate(less.than = ifelse(.[[2]] <= .[[5]] & .[[3]] <= .[[5]], T, F)) %>% # is parent 1 trait less than parent 2
+  mutate(sig.dif = ifelse(greater.than || less.than == T, T, F)) # if one or the other are true, then the two traits are significantly different (|| is or)
 
+# then will filter data by traits that are ONLY true for 'sig dif' in the dataset generated above
 # calculate parental mid-pt
 moa.parentmid <- moa.sticklestudy.a %>% 
   select(Parent_Hybrid, TraitNo ,Trait_mean) %>% 
   filter(Parent_Hybrid == "Parent") %>% 
-  group_by(TraitNo) %>% 
+  group_by(TraitNo) %>%
   summarize(mean(Trait_mean))
 
 #list of parental midpoints
@@ -67,7 +69,6 @@ moa.trait.ci <- moa.sticklestudy %>%
   mutate(parent.mid = parent.mids)
 
 # proportion of dominant traits (later: among traits that differ between parents)
-View(moa.trait.ci)
 as.vector(moa.trait.ci$TraitDesc)
 with(moa.trait.ci, Low.Bound <= parent.mid & High.Bound >= parent.mids)
 # nice, works
@@ -80,21 +81,13 @@ moa.sticklestudy.a <- moa.sticklestudy %>%
   # mutate(ci.scaled = ci  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1) 
   # re-orient all variables so the same parent is -1 for all traits
 
-
-
-# calculate opposing dominance
-# variance works well for this
-
-
-
 # scale trait so that all one parent = -1, all other = 1 
 moa.sticklestudy.b <- moa.sticklestudy.a %>%
   group_by(TraitNo) %>% 
   mutate(inverse.need = if_else(Trait.mean.scaled[Species_or_CrossType == "Paxton_Benthic"] == 1, T, F)) %>%  # true if all is good, false if need to invert 
   mutate(final.trait = ifelse(inverse.need == T, -1 * Trait.mean.scaled, 1 * Trait.mean.scaled))
-View(test.data)
+# View(test.data)
 
-         
 # net dominance
 nd.data <- moa.sticklestudy.b %>% 
   ungroup() %>% 
@@ -122,8 +115,6 @@ t = as.vector((pa %*% ba) / (ba %*% ba))
 d = (pa - t * ba)
 dist = sqrt(sum(d^2))
 dist
-
-
 
 # plot each trait
 trait.mean.plot <- 
