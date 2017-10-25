@@ -38,26 +38,18 @@ moa.data <- moa.data %>%
 moa.sticklestudy <- moa.data %>% 
   filter(study.id == 2) %>% 
   mutate(Trait_var = as.numeric(as.character(Trait_var))) %>% 
-  mutate(ci = if_else(Trait_var_Cat == "SD", 1.96 * (Trait_var/sqrt(Trait_n)), false = 0)) # calculate CIs
+  mutate(ci = if_else(Trait_var_Cat == "SD", 1.96 * (Trait_var/sqrt(Trait_n)), false = 0)) %>% # calculate CIs
+  mutate(Low.Bound = Trait_mean - ci, High.Bound = Trait_mean + ci) # lower and upper bound of 95% CI
 
-
-# are traits different, if so, are hybrids in the middle?
-
-
-# set one parent to -1 other to +1
-moa.sticklestudy.a <- moa.sticklestudy %>%
-  group_by(study.id, TraitNo) %>% # group by study and trait
-  mutate(Trait.mean.subbed = Trait_mean - min(Trait_mean[Parent_Hybrid == "Parent"])) %>% # subtract minimum parent value from all, rendering one parent = 0
-  mutate(Trait.mean.scaled = Trait.mean.subbed  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1)  # now divide all values by 2/max - 1 to set parent 1 =-1, parent 2 = 1; note: this doesn't appropriately scale SD
-  # mutate(ci.scaled = ci  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1) 
-  # re-orient all variables so the same parent is -1 for all traits
-
-
-
-# calculate opposing dominance
-# variance works well for this
-
-
+# are parental traits different, if so, are hybrids in the middle?
+test.data <- moa.sticklestudy %>% 
+  filter(Parent_Hybrid == "Parent") %>% 
+  select(Low.Bound, High.Bound, Species_or_CrossType, TraitNo) %>% 
+  gather(key = )
+  unite(TraitNo, High.Bound, Low.Bound) %>% 
+  spread(var, value)
+  
+# now want dataframe with trait startSp1, stopsp1,  
 
 # calculate parental mid-pt
 moa.parentmid <- moa.sticklestudy.a %>% 
@@ -72,7 +64,6 @@ parent.mids <- moa.parentmid$`mean(Trait_mean)`
 # do CIs from hybrid contain midpoint?
 moa.trait.ci <- moa.sticklestudy %>% 
   filter(Parent_Hybrid == "Hybrid") %>% 
-  mutate(Low.Bound = Trait_mean - ci, High.Bound = Trait_mean + ci) %>% 
   mutate(parent.mid = parent.mids)
 
 # proportion of dominant traits (later: among traits that differ between parents)
@@ -80,6 +71,20 @@ View(moa.trait.ci)
 as.vector(moa.trait.ci$TraitDesc)
 with(moa.trait.ci, Low.Bound <= parent.mid & High.Bound >= parent.mids)
 # nice, works
+
+# set one parent to -1 other to +1
+moa.sticklestudy.a <- moa.sticklestudy %>%
+  group_by(study.id, TraitNo) %>% # group by study and trait
+  mutate(Trait.mean.subbed = Trait_mean - min(Trait_mean[Parent_Hybrid == "Parent"])) %>% # subtract minimum parent value from all, rendering one parent = 0
+  mutate(Trait.mean.scaled = Trait.mean.subbed  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1)  # now divide all values by 2/max - 1 to set parent 1 =-1, parent 2 = 1; note: this doesn't appropriately scale SD
+  # mutate(ci.scaled = ci  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1) 
+  # re-orient all variables so the same parent is -1 for all traits
+
+
+
+# calculate opposing dominance
+# variance works well for this
+
 
 
 # scale trait so that all one parent = -1, all other = 1 
