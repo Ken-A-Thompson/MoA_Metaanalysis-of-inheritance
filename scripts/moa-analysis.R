@@ -33,7 +33,48 @@ moa.data <- read.csv('/Users/Ken/Dropbox/!Ph.D./!MoA_Meta-analysis_of_Inheritanc
 moa.data <- moa.data %>% 
   mutate(study.id = match(Study, unique(Study)))
 
-# Practising with a single study
+# Generate a figure with Bradshaw & Schemske Data
+
+NIS.Bradshaw.Data <- Bradshaw.Tidy
+
+NIS.Bradshaw.Data.P.F1 <- as.data.frame(NIS.Bradshaw.Data) %>% 
+  filter(fam == c("C", "L", "CL", "LC"))
+
+# practicing with bradshaw data, generating CIs
+# set one parent to -1 other to +1
+NIS.Bradshaw.Std <- NIS.Bradshaw.Data.P.F1 %>%
+  group_by(traitname) %>% # group by study and trait
+  mutate(Trait.mean.subbed = mean - min(mean[Parent_Hybrid == "Parent"])) %>% # subtract minimum parent value from all, rendering one parent = 0
+  mutate(Trait.mean.scaled = Trait.mean.subbed  / (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1)  # now divide all values by 2/max - 1 to set parent 1 =-1, parent 2 = 1; note: this doesn't appropriately scale SD
+# mutate(ci.scaled = ci  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1) 
+
+NIS.Bradshaw.Std %>% 
+  mutate(Trait.mean.scaled = Trait.mean.subbed  * (2 / max(Trait.mean.subbed[Parent_Hybrid == "Parent"])) - 1)  # now divide(?) all values by 2/max - 1 to set parent 1 =-1, parent 2 = 1; note: this doesn't appropriately scale SD
+
+  
+
+head(NIS.Bradshaw.Std)
+
+# scale trait so that all one parent = -1, all other = 1 
+NIS.Bradshaw.Std.2 <- NIS.Bradshaw.Std %>%
+  group_by(id) %>% 
+  mutate(inverse.need = if_else(Trait.mean.scaled[fam == "L"] == 1, T, F)) %>%  # true if all is good, false if need to invert 
+  mutate(final.trait = ifelse(inverse.need == T, -1 * Trait.mean.scaled, 1 * Trait.mean.scaled))
+# View(test.data)
+
+
+# plot some traits
+trait.mean.plot <- 
+  ggplot(moa.sticklestudy.b,
+         aes(x = final.trait, y = TraitDesc, fill = fam)) + 
+  geom_point(aes(shape = factor(Species_or_CrossType), fill = factor(Species_or_CrossType)), size = 3) +
+  geom_vline(xintercept = 0, col = "red") +
+  # geom_errorbarh(aes(xmax = Trait.mean.scaled + ci, xmin = Trait.mean.scaled - ci)) + # plots horizontal error bars; not sure show to do this.
+  theme_meta
+trait.mean.plot
+
+
+#stickle practice
 
 moa.sticklestudy <- moa.data %>% 
   filter(study.id == 2) %>% 
